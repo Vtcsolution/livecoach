@@ -2,6 +2,11 @@ import {
   AlignJustify,
   Wallet,
   Check,
+  UserCircle,
+  Users,
+  ChevronDown,
+  LogIn,
+  UserPlus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
@@ -13,6 +18,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./screen/AuthContext";
@@ -255,24 +268,56 @@ export default function Navbar({ onOpenPaymentModal }) {
             </>
           )}
           {!user && (
-            <motion.div variants={menuItemVariants} className="flex flex-col gap-4 mt-4">
-              <Link to="/login" onClick={handleMenu}>
-                <Button
-                  variant="outline"
-                  className="text-sm w-full bg-white hover:bg-[#3B5EB7] hover:text-white transition-colors duration-300 px-6 py-2"
-                >
-                  Sign In
-                </Button>
-              </Link>
-              <Link to="/register" onClick={handleMenu}>
-                <Button
-                  variant="outline"
-                  className="text-sm w-full bg-white hover:bg-[#3B5EB7] hover:text-white transition-colors duration-300 px-6 py-2"
-                >
-                  Sign Up
-                </Button>
-              </Link>
-            </motion.div>
+            <>
+              {/* Mobile: Separate buttons */}
+              <motion.div variants={menuItemVariants} className="mt-4">
+                <h3 className="text-[#3B5EB7] font-medium text-lg mb-3">For Users</h3>
+                <div className="flex flex-col gap-2">
+                  <Link to="/login" onClick={handleMenu}>
+                    <Button
+                      variant="outline"
+                      className="w-full bg-white hover:bg-[#3B5EB7] hover:text-white transition-colors duration-300 py-2 flex items-center gap-2"
+                    >
+                      <LogIn className="h-4 w-4" />
+                      User Login
+                    </Button>
+                  </Link>
+                  <Link to="/register" onClick={handleMenu}>
+                    <Button
+                      variant="outline"
+                      className="w-full bg-white hover:bg-[#3B5EB7] hover:text-white transition-colors duration-300 py-2 flex items-center gap-2"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      User Register
+                    </Button>
+                  </Link>
+                </div>
+              </motion.div>
+              
+              <motion.div variants={menuItemVariants} className="mt-4">
+                <h3 className="text-[#3B5EB7] font-medium text-lg mb-3">For Coaches</h3>
+                <div className="flex flex-col gap-2">
+                  <Link to="/psychic/login" onClick={handleMenu}>
+                    <Button
+                      variant="outline"
+                      className="w-full bg-white hover:bg-[#10b981] hover:text-white transition-colors duration-300 py-2 flex items-center gap-2"
+                    >
+                      <LogIn className="h-4 w-4" />
+                      Coach Login
+                    </Button>
+                  </Link>
+                  <Link to="/psychic/register" onClick={handleMenu}>
+                    <Button
+                      variant="outline"
+                      className="w-full bg-white hover:bg-[#10b981] hover:text-white transition-colors duration-300 py-2 flex items-center gap-2"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      Coach Register
+                    </Button>
+                  </Link>
+                </div>
+              </motion.div>
+            </>
           )}
         </motion.ul>
       </div>
@@ -348,28 +393,88 @@ export default function Navbar({ onOpenPaymentModal }) {
                     </motion.li>
                   </>
                 )}
-                
-                {!user && (
-                  <motion.div variants={menuItemVariants} className="flex items-center gap-4">
-                    <Link to="/login">
-                      <Button
-                        variant="outline"
-                        className="text-sm bg-white hover:bg-[#3B5EB7] hover:text-white transition-colors duration-300 px-6 py-2"
-                      >
-                        Sign In
-                      </Button>
-                    </Link>
-                    <Link to="/register">
-                      <Button
-                        variant="outline"
-                        className="text-sm bg-white hover:bg-[#3B5EB7] hover:text-white transition-colors duration-300 px-6 py-2"
-                      >
-                        Sign Up
-                      </Button>
-                    </Link>
-                  </motion.div>
-                )}
               </motion.ul>
+              
+              {!user && (
+                <motion.div 
+                  variants={menuItemVariants} 
+                  className="flex max-lg:hidden items-center gap-4"
+                >
+                  {/* User Login Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="bg-white hover:bg-[#3B5EB7] hover:text-white transition-colors duration-300 flex items-center gap-2"
+                      >
+                        <UserCircle className="h-4 w-4" />
+                        User Login
+                        <ChevronDown className="h-3 w-3 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuLabel className="text-xs font-normal text-gray-500">
+                        For Clients
+                      </DropdownMenuLabel>
+                      <DropdownMenuItem asChild>
+                        <Link to="/login" className="cursor-pointer flex items-center gap-2">
+                          <LogIn className="h-4 w-4" />
+                          <div>
+                            <div className="font-medium">Login</div>
+                            <div className="text-xs text-gray-500">Access your account</div>
+                          </div>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/register" className="cursor-pointer flex items-center gap-2">
+                          <UserPlus className="h-4 w-4" />
+                          <div>
+                            <div className="font-medium">Register</div>
+                            <div className="text-xs text-gray-500">Create new account</div>
+                          </div>
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Psychic Login Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="bg-white hover:bg-[#10b981] hover:text-white transition-colors duration-300 flex items-center gap-2"
+                      >
+                        <Users className="h-4 w-4" />
+                        Coach Login
+                        <ChevronDown className="h-3 w-3 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuLabel className="text-xs font-normal text-gray-500">
+                        For Psychic Coaches
+                      </DropdownMenuLabel>
+                      <DropdownMenuItem asChild>
+                        <Link to="/psychic/login" className="cursor-pointer flex items-center gap-2">
+                          <LogIn className="h-4 w-4" />
+                          <div>
+                            <div className="font-medium">Coach Login</div>
+                            <div className="text-xs text-gray-500">Access coach panel</div>
+                          </div>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/psychic/register" className="cursor-pointer flex items-center gap-2">
+                          <UserPlus className="h-4 w-4" />
+                          <div>
+                            <div className="font-medium">Coach Register</div>
+                            <div className="text-xs text-gray-500">Join as psychic</div>
+                          </div>
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </motion.div>
+              )}
               
               <div className="lg:hidden z-[50]">
                 <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
