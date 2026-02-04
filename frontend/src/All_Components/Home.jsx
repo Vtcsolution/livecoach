@@ -1,3 +1,4 @@
+// Modified Frontend: Home component
 import { MessageCircle, Star, Lock, Cpu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,6 @@ import { motion } from "framer-motion";
 import { debounce } from "lodash";
 import VideoSection from "./VideoSection";
 import io from 'socket.io-client';
-
 const Home = () => {
   const { user, loading: authLoading, error: authError, setUser } = useAuth();
   const navigate = useNavigate();
@@ -45,7 +45,6 @@ const Home = () => {
   const [statusLoading, setStatusLoading] = useState(false);
 const [socketConnected, setSocketConnected] = useState(false);
 const [ratingSummaries, setRatingSummaries] = useState({});
-
 const subscribedPsychicsRef = useRef(new Set());
   const [formData, setFormData] = useState({
     name: "",
@@ -67,7 +66,6 @@ const subscribedPsychicsRef = useRef(new Set());
   const [psychicsError, setPsychicsError] = useState(null);
   const [isLoadingHumanPsychics, setIsLoadingHumanPsychics] = useState(false);
   const [humanPsychicsError, setHumanPsychicsError] = useState(null);
-
   // Debounced email validation
   const validateEmail = useCallback(
     debounce((value) => {
@@ -80,7 +78,6 @@ const subscribedPsychicsRef = useRef(new Set());
     }, 500),
     []
   );
-
   // ========== DATA FETCHING ==========
   useEffect(() => {
     const fetchPsychics = async () => {
@@ -93,7 +90,7 @@ const subscribedPsychicsRef = useRef(new Set());
           withCredentials: true,
         });
         const data = response.data;
-      
+     
         if (data.success && Array.isArray(data.data)) {
           setPsychics(data.data);
         } else {
@@ -112,24 +109,24 @@ const subscribedPsychicsRef = useRef(new Set());
 const fetchPsychicRatingSummary = async (psychicId) => {
   try {
     console.log('Fetching rating summary for psychic:', psychicId);
-    
+   
     // Try both endpoints
     let endpoints = [
       `${import.meta.env.VITE_BASE_URL}/api/psychic/${psychicId}/summary`,
       `${import.meta.env.VITE_BASE_URL}/api/ratings/psychic/${psychicId}/summary`,
       `${import.meta.env.VITE_BASE_URL}/api/human-psychics/${psychicId}/summary`
     ];
-    
+   
     let response = null;
     let error = null;
-    
+   
     for (const endpoint of endpoints) {
       try {
         console.log('Trying endpoint:', endpoint);
         response = await axios.get(endpoint, {
           timeout: 3000 // 3 second timeout
         });
-        
+       
         if (response.data && response.data.success) {
           console.log('Success from endpoint:', endpoint, response.data.data);
           return response.data.data;
@@ -139,10 +136,10 @@ const fetchPsychicRatingSummary = async (psychicId) => {
         error = err;
       }
     }
-    
+   
     console.error('All endpoints failed for psychic:', psychicId);
     return null;
-    
+   
   } catch (error) {
     console.error('Error fetching rating summary:', error);
     return null;
@@ -153,7 +150,7 @@ const getDummyAIPsychicRating = (psychicId) => {
   const hash = psychicId?.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) || 0;
   const rating = 4.8 + (hash % 5) / 10; // Between 4.5 and 4.9
   const totalRatings = 50 + (hash % 50); // Between 50 and 100
-  
+ 
   return {
     rating: rating.toFixed(1),
     fullStars: Math.floor(rating),
@@ -175,7 +172,7 @@ useEffect(() => {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         withCredentials: true,
       });
-      
+     
       const data = response.data;
       if (data.success && Array.isArray(data.psychics)) {
         // Inside fetchHumanPsychicsWithFastStatus function, after setting formattedPsychics:
@@ -184,13 +181,11 @@ const formattedPsychics = data.psychics.map(p => ({
   isHuman: true,
   type: p.type || "Human Psychic"
 }));
-
 // Fetch rating summaries for each human psychic
 const ratingSummaryPromises = formattedPsychics.map(async (psychic) => {
   const summary = await fetchPsychicRatingSummary(psychic._id);
   return { psychicId: psychic._id, summary };
 });
-
 const summaries = await Promise.all(ratingSummaryPromises);
 const summaryMap = {};
 summaries.forEach(item => {
@@ -199,22 +194,21 @@ summaries.forEach(item => {
   }
 });
 setRatingSummaries(prev => ({ ...prev, ...summaryMap }));
-
 setHumanPsychics(formattedPsychics);
         // IMMEDIATELY fetch statuses for human psychics too
         const psychicIds = data.psychics.map(p => p._id);
-        
+       
         if (psychicIds.length > 0) {
           try {
             const statusResponse = await axios.post(
               `${import.meta.env.VITE_BASE_URL}/api/human-psychics/statuses-fast`,
               { psychicIds },
-              { 
+              {
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
                 timeout: 2000
               }
             );
-            
+           
             if (statusResponse.data.success) {
               const newStatuses = {};
               Object.keys(statusResponse.data.statuses).forEach(id => {
@@ -225,7 +219,7 @@ setHumanPsychics(formattedPsychics);
                   timestamp: Date.now()
                 };
               });
-              
+             
               setPsychicStatuses(prev => ({
                 ...prev,
                 ...newStatuses
@@ -235,7 +229,7 @@ setHumanPsychics(formattedPsychics);
             console.warn("Human psychics fast status failed:", statusError);
           }
         }
-        
+       
       } else {
         throw new Error(data.message || "Failed to fetch human psychics");
       }
@@ -247,31 +241,26 @@ setHumanPsychics(formattedPsychics);
       setIsLoadingHumanPsychics(false);
     }
   };
-  
+ 
   fetchHumanPsychicsWithFastStatus();
 }, []);
-
-
-
 useEffect(() => {
   const token = localStorage.getItem('accessToken');
-  const userId = user?._id || '';
-  
-  if (!userId) return;
-  
+  const connectUserId = user?._id || null;
+  const connectRole = user ? 'user' : 'guest';
+ 
   // Prevent duplicate socket creation
   if (socketRef.current?.connected) {
     console.log('ℹ️ Socket already connected');
     return;
   }
-
   console.log('🔄 Creating new socket connection...');
-  
+ 
   const newSocket = io(`${import.meta.env.VITE_BASE_URL}`, {
     auth: {
-      token,
-      userId,
-      role: 'user'
+      token: token || null,
+      userId: connectUserId,
+      role: connectRole
     },
     transports: ['websocket', 'polling'],
     reconnection: true,
@@ -279,29 +268,24 @@ useEffect(() => {
     reconnectionDelay: 1000,
     timeout: 20000,
   });
-
   socketRef.current = newSocket;
   setSocket(newSocket);
-
   // Connection events
   newSocket.on('connect', () => {
     console.log('✅ Socket.io connected:', newSocket.id);
     setSocketConnected(true);
-    
+   
     // Join global psychic list room
     newSocket.emit('join_room', 'psychic_list_status');
   });
-
   newSocket.on('disconnect', (reason) => {
     console.log('❌ Socket.io disconnected:', reason);
     setSocketConnected(false);
   });
-
   newSocket.on('connect_error', (error) => {
     console.error('Socket connection error:', error);
     setSocketConnected(false);
   });
-
   // Consolidated psychic status handler
   const handlePsychicStatusUpdate = (data) => {
     console.log('🔄 Psychic status update:', {
@@ -309,7 +293,7 @@ useEffect(() => {
       status: data.status,
       timestamp: new Date(data.timestamp).toLocaleTimeString()
     });
-    
+   
     setPsychicStatuses(prev => ({
       ...prev,
       [data.psychicId]: {
@@ -321,12 +305,10 @@ useEffect(() => {
       }
     }));
   };
-
   // Listen for all status update events
   newSocket.on('psychic_status_changed', handlePsychicStatusUpdate);
   newSocket.on('psychic_status_update', handlePsychicStatusUpdate);
   newSocket.on('psychic_online', handlePsychicStatusUpdate);
-
   // Initial statuses response
   newSocket.on('psychic_statuses_response', (data) => {
     console.log('📋 Initial psychic statuses received');
@@ -344,7 +326,6 @@ useEffect(() => {
       setPsychicStatuses(prev => ({ ...prev, ...newStatuses }));
     }
   });
-
   // Cleanup on unmount
   return () => {
     console.log('🧹 Cleaning up socket connection');
@@ -354,51 +335,40 @@ useEffect(() => {
     }
     subscribedPsychicsRef.current.clear();
   };
-}, [user?._id]);
-
-// Smart subscription to psychic statuses
+}, [user]);
 useEffect(() => {
   if (!socketConnected || !socketRef.current) return;
-
   const allPsychicIds = [
     ...psychics.map(p => p._id),
     ...humanPsychics.map(p => p._id)
   ].filter(id => id && !subscribedPsychicsRef.current.has(id));
-
   if (allPsychicIds.length === 0) return;
-
   console.log('📊 Subscribing to psychic statuses:', allPsychicIds);
-
   // Subscribe to status updates
-  socketRef.current.emit('subscribe_to_psychic_status', { 
-    psychicIds: allPsychicIds 
+  socketRef.current.emit('subscribe_to_psychic_status', {
+    psychicIds: allPsychicIds
   });
-
   // Request initial statuses
-  socketRef.current.emit('get_psychic_statuses', { 
-    psychicIds: allPsychicIds 
+  socketRef.current.emit('get_psychic_statuses', {
+    psychicIds: allPsychicIds
   });
-
   // Add to subscribed set
   allPsychicIds.forEach(id => subscribedPsychicsRef.current.add(id));
-
   // Set up periodic status refresh (every 60 seconds)
   const refreshInterval = setInterval(() => {
     if (socketConnected && allPsychicIds.length > 0) {
-      socketRef.current.emit('get_psychic_statuses', { 
-        psychicIds: allPsychicIds 
+      socketRef.current.emit('get_psychic_statuses', {
+        psychicIds: allPsychicIds
       });
     }
   }, 60000);
-
   return () => clearInterval(refreshInterval);
 }, [socketConnected, psychics, humanPsychics]);
-
 // ========== OPTIMIZED HELPER FUNCTIONS ==========
 const getPsychicStatus = (psychicId) => {
   const statusData = psychicStatuses[psychicId];
   if (!statusData) return 'offline';
-  
+ 
   // If status is online but last update was more than 2 minutes ago, mark as away
   if (statusData.status === 'online' && statusData.lastUpdate) {
     const minutesSinceUpdate = (Date.now() - statusData.lastUpdate) / (1000 * 60);
@@ -406,10 +376,9 @@ const getPsychicStatus = (psychicId) => {
       return 'away';
     }
   }
-  
+ 
   return statusData.status || 'offline';
 };
-
 const getStatusBadgeColor = (status) => {
   switch (status) {
     case 'online':
@@ -424,7 +393,6 @@ const getStatusBadgeColor = (status) => {
       return 'bg-gray-400 text-white';
   }
 };
-
 const getStatusText = (status) => {
   switch (status) {
     case 'online':
@@ -439,7 +407,6 @@ const getStatusText = (status) => {
       return 'Offline';
   }
 };
-
 const getStatusIcon = (status) => {
   switch (status) {
     case 'online':
@@ -452,13 +419,11 @@ const getStatusIcon = (status) => {
       return <div className="h-2 w-2 rounded-full bg-gray-400"></div>;
   }
 };
-
 // Check if psychic is available for chat
 const isPsychicAvailable = (psychicId) => {
   const status = getPsychicStatus(psychicId);
   return status === 'online' || status === 'away';
 };
-
   // ========== OTHER EFFECTS ==========
   useEffect(() => {
     const fetchUserData = async () => {
@@ -480,7 +445,6 @@ const isPsychicAvailable = (psychicId) => {
     };
     fetchUserData();
   }, [user, navigate, setUser, location.state?.fromLogin]);
-
   useEffect(() => {
     if (user && (selectedPsychic?.type.toLowerCase() !== "tarot" || modalType === "lovePdf")) {
       const birthDate = user.dob ? new Date(user.dob).toISOString().split("T")[0] : "";
@@ -497,7 +461,6 @@ const isPsychicAvailable = (psychicId) => {
       }
     }
   }, [user, selectedPsychic, modalType]);
-
   useEffect(() => {
     if (location.state?.numerologyReport) {
       setNumerologyReport(location.state.numerologyReport);
@@ -517,7 +480,6 @@ const isPsychicAvailable = (psychicId) => {
       navigate("/", { state: {}, replace: true });
     }
   }, [location.state, navigate]);
-
   useEffect(() => {
     const fetchUserCredits = async () => {
       if (!user) return;
@@ -538,7 +500,6 @@ const isPsychicAvailable = (psychicId) => {
     };
     fetchUserCredits();
   }, [user, navigate]);
-
   useEffect(() => {
     const fetchPdfReport = async () => {
       if (!user) return;
@@ -557,7 +518,6 @@ const isPsychicAvailable = (psychicId) => {
     };
     fetchPdfReport();
   }, [user]);
-
   useEffect(() => {
     const fetchLovePdfReport = async () => {
       if (!user) return;
@@ -576,7 +536,6 @@ const isPsychicAvailable = (psychicId) => {
     };
     fetchLovePdfReport();
   }, [user]);
-
   useEffect(() => {
     const fetchCoords = async (field, city) => {
       if (!city) return;
@@ -603,7 +562,6 @@ const isPsychicAvailable = (psychicId) => {
       if (formData.partnerPlaceOfBirth) fetchCoords("partner", formData.partnerPlaceOfBirth);
     }
   }, [formData.yourBirthPlace, formData.partnerPlaceOfBirth, selectedPsychic?.type, modalType]);
-
   // ========== EVENT HANDLERS ==========
   const handleAstrologyUnlock = () => {
     if (!user) {
@@ -614,7 +572,6 @@ const isPsychicAvailable = (psychicId) => {
     setModalType("astrology");
     setShowConfirmModal(true);
   };
-
   const handlePdfUnlock = async () => {
     if (!user) {
       toast.error("Please log in to unlock the PDF Astrology report");
@@ -664,7 +621,6 @@ const isPsychicAvailable = (psychicId) => {
       setIsSubmitting(false);
     }
   };
-
   const handleLovePdfUnlock = async () => {
     if (!user) {
       toast.error("Please log in to unlock the Love PDF report");
@@ -679,7 +635,6 @@ const isPsychicAvailable = (psychicId) => {
     setModalType("lovePdf");
     setShowReportModal(true);
   };
-
   const handleLovePdfSubmit = async () => {
     if (!user) {
       toast.error("Please log in to proceed.");
@@ -777,7 +732,6 @@ const isPsychicAvailable = (psychicId) => {
       setIsSubmitting(false);
     }
   };
-
   const confirmUnlock = async () => {
     setShowConfirmModal(false);
     setIsSubmitting(true);
@@ -848,32 +802,28 @@ const isPsychicAvailable = (psychicId) => {
       setIsSubmitting(false);
     }
   };
-
   const handlePaymentRedirect = () => {
     navigate("/payment");
     setShowPaymentModal(false);
   };
-
   const handleShowMore = () => setShowing((prev) => Math.min(prev + 4, humanPsychics.length));
-
   const handlePsychicSelect = async (psychic) => {
     if (!user) {
       toast.error("Please log in to connect with a psychic");
       navigate("/login");
       return;
     }
-    
+   
     const psychicStatus = getPsychicStatus(psychic._id);
     const isAvailable = isPsychicAvailable(psychic._id);
-
     // Check if psychic is available (not offline or busy)
     if (psychic.isHuman && (psychicStatus === 'offline' || psychicStatus === 'busy')) {
       toast.error(`This psychic is currently ${psychicStatus.toLowerCase()}. Please try again later.`);
       return;
     }
-    
+   
     setSelectedPsychic(psychic);
-    
+   
     // For AI Psychics
     if (!psychic.isHuman) {
       if (psychic.type.toLowerCase() === "tarot") {
@@ -884,7 +834,7 @@ const isPsychicAvailable = (psychicId) => {
             `${import.meta.env.VITE_BASE_URL}/api/chat/check-session/${psychic._id}`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
-          
+         
           if (checkResponse.data.exists) {
             navigate(`/chat/${psychic._id}`, {
               state: {
@@ -895,13 +845,13 @@ const isPsychicAvailable = (psychicId) => {
             });
             return;
           }
-          
+         
           const response = await axios.post(
             `${import.meta.env.VITE_BASE_URL}/api/chat/sessions`,
             { psychicId: psychic._id },
             { headers: { Authorization: `Bearer ${token}` } }
           );
-          
+         
           if (response.data.success) {
             navigate(`/chat/${psychic._id}`, {
               state: {
@@ -933,13 +883,13 @@ const isPsychicAvailable = (psychicId) => {
       }
       return;
     }
-    
+   
     // For Human Psychics
     if (psychic.isHuman) {
       setIsSubmitting(true);
       try {
         const token = localStorage.getItem("accessToken");
-        
+       
         // Check for existing session
         try {
           const check = await axios.get(
@@ -960,14 +910,14 @@ const isPsychicAvailable = (psychicId) => {
         } catch (checkError) {
           console.log("No existing session found, creating new one");
         }
-        
+       
         // Create new session
         const response = await axios.post(
           `${import.meta.env.VITE_BASE_URL}/api/humanchat/sessions`,
           { psychicId: psychic._id },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        
+       
         if (response.data.success) {
           navigate(`/message/${psychic._id}`, {
             state: {
@@ -1001,7 +951,6 @@ const isPsychicAvailable = (psychicId) => {
       return;
     }
   };
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     if (name === "name") {
@@ -1043,7 +992,6 @@ const isPsychicAvailable = (psychicId) => {
     }
     setFormData((prev) => ({ ...prev, [name]: value.trim() }));
   };
-
   const handleNumerologyFormSubmit = async () => {
     const requiredFields = ["name", "dob", "email"];
     const missingFields = requiredFields.filter((field) => !formData[field]?.trim());
@@ -1112,7 +1060,6 @@ const isPsychicAvailable = (psychicId) => {
       setIsSubmitting(false);
     }
   };
-
   const handleFormSubmit = async () => {
     if (!selectedPsychic || !user) {
       toast.error("Please select a psychic and ensure you are logged in.");
@@ -1133,7 +1080,7 @@ const isPsychicAvailable = (psychicId) => {
       numerology: ["yourFirstName", "yourBirthDate"],
       tarot: [],
     }[type] || [];
-    
+   
     if (type !== "tarot") {
       const missingFields = requiredFields.filter((field) => !formData[field]?.trim());
       if (missingFields.length > 0) {
@@ -1192,7 +1139,7 @@ const isPsychicAvailable = (psychicId) => {
         }
       }
     }
-    
+   
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem("accessToken");
@@ -1201,7 +1148,7 @@ const isPsychicAvailable = (psychicId) => {
         navigate("/login");
         return;
       }
-      
+     
       const payload = {
         psychicId: selectedPsychic._id,
         formData: {
@@ -1234,7 +1181,7 @@ const isPsychicAvailable = (psychicId) => {
           ...(type === "tarot" && {}),
         },
       };
-      
+     
       const response = await axios.post(
         `${import.meta.env.VITE_BASE_URL}/api/form/submit`,
         payload,
@@ -1245,17 +1192,17 @@ const isPsychicAvailable = (psychicId) => {
           },
         }
       );
-      
+     
       if (response.data.success) {
         toast.success(`${selectedPsychic.type} reading data saved successfully!`);
-        
+       
         setIsSubmitting(true);
         try {
           const checkResponse = await axios.get(
             `${import.meta.env.VITE_BASE_URL}/api/chat/check-session/${selectedPsychic._id}`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
-          
+         
           let chatSession;
           if (checkResponse.data.exists) {
             chatSession = checkResponse.data.session;
@@ -1265,14 +1212,14 @@ const isPsychicAvailable = (psychicId) => {
               { psychicId: selectedPsychic._id },
               { headers: { Authorization: `Bearer ${token}` } }
             );
-            
+           
             if (createResponse.data.success) {
               chatSession = createResponse.data.chatSession;
             } else {
               throw new Error(createResponse.data.message || "Failed to start AI chat.");
             }
           }
-          
+         
           setShowReportModal(false);
           navigate(`/chat/${selectedPsychic._id}`, {
             state: {
@@ -1281,7 +1228,7 @@ const isPsychicAvailable = (psychicId) => {
               isAI: true
             }
           });
-          
+         
         } catch (sessionError) {
           console.error("AI Chat session error:", sessionError);
           if (sessionError.response?.status === 404) {
@@ -1297,7 +1244,7 @@ const isPsychicAvailable = (psychicId) => {
         } finally {
           setIsSubmitting(false);
         }
-        
+       
       } else {
         toast.error(response.data.message || "Failed to save reading data.");
       }
@@ -1314,7 +1261,6 @@ const isPsychicAvailable = (psychicId) => {
       setIsSubmitting(false);
     }
   };
-
   // ========== RENDER FUNCTIONS ==========
   const renderFormFields = () => {
     if (!selectedPsychic && modalType !== "lovePdf" && modalType !== "loveCompatibility") return null;
@@ -1333,7 +1279,7 @@ const isPsychicAvailable = (psychicId) => {
         />
       </div>
     );
-    
+   
     switch (type) {
       case "numerology":
         return (
@@ -1394,7 +1340,6 @@ const isPsychicAvailable = (psychicId) => {
         return null;
     }
   };
-
   const renderAstrologyReport = () => {
     if (!astrologyReport) return null;
     const { narrative, chart, numerology } = astrologyReport;
@@ -1485,7 +1430,6 @@ const isPsychicAvailable = (psychicId) => {
       </div>
     );
   };
-
   const renderLoveCompatibilityReport = () => {
     if (!loveCompatibilityReport) return null;
     const { narrative, compatibility } = loveCompatibilityReport;
@@ -1536,7 +1480,6 @@ const isPsychicAvailable = (psychicId) => {
       </div>
     );
   };
-
   const renderMonthlyForecastReport = () => {
     if (!monthlyForecastReport) return null;
     const { narrative, chart, forecast, predictionMonth, predictionYear } = monthlyForecastReport;
@@ -1616,7 +1559,6 @@ const isPsychicAvailable = (psychicId) => {
       </div>
     );
   };
-
   const renderNumerologyForm = () => (
     <div className="space-y-4">
       <div>
@@ -1657,7 +1599,7 @@ const isPsychicAvailable = (psychicId) => {
         />
         {emailError && <p className="text-red-500 text-sm">{emailError}</p>}
       </div>
-  
+ 
       <Button
         onClick={handleNumerologyFormSubmit}
         disabled={isSubmitting}
@@ -1667,7 +1609,6 @@ const isPsychicAvailable = (psychicId) => {
       </Button>
     </div>
   );
-
   const renderNumerologyReport = () => (
     <div className="space-y-6 p-4">
       <h2 className="text-2xl font-bold text-center">Uw Numerologie Rapport</h2>
@@ -1692,7 +1633,6 @@ const isPsychicAvailable = (psychicId) => {
       </div>
     </div>
   );
-
   return (
     <div className="">
       <div className="relative w-full overflow-hidden">
@@ -1715,74 +1655,77 @@ const isPsychicAvailable = (psychicId) => {
           />
         </div>
       </div>
-      <div className="bg-gradient-to-r from-purple-600 to-indigo-900 text-white py-12 px-4 sm:px-6 overflow-x-hidden">
-        <div className="max-w-[100vw] mx-auto text-center overflow-x-hidden">
-          <h1 className="text-3xl sm:text-4xl font-extrabold mb-4">
-            Ontdek uw spirituele blauwdruk
-          </h1>
-          <p className="text-base sm:text-lg mb-6 opacity-90 max-w-[90vw] mx-auto">
-            Ontgrendel persoonlijke inzichten in uw spirituele reis
-          </p>
-       
-          <>
-            {!user && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{
-                  opacity: 1,
-                  scale: [1, 1.2, 0.95, 1],
-                }}
-                transition={{
-                  duration: 1.5,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-                whileHover={{ scale: 1.25 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <Button
-                  variant="brand"
-                  className="rounded-full px-4 py-3 sm:px-6 sm:py-4 text-base sm:text-lg
-                    bg-gradient-to-r from-amber-400 to-amber-500
-                    hover:from-amber-500 hover:to-amber-600
-                    shadow-xl hover:shadow-2xl
-                    transition-all duration-300
-                    border-2 border-white/20 whitespace-normal"
-                  onClick={() => navigate("/register")}
-                >
-Klik hier om gratis met een coach te chatten                </Button>
-              </motion.div>
-            )}
-          </>
-          <Dialog open={showFormModal} onOpenChange={setShowFormModal}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Uw Numerologie Rapport</DialogTitle>
-                <DialogDescription>
-                  Vul uw gegevens in om uw gepersonaliseerde numerologie rapport te genereren.
-                </DialogDescription>
-              </DialogHeader>
-              {renderNumerologyForm()}
-            </DialogContent>
-          </Dialog>
-          <Dialog open={showReportModal} onOpenChange={setShowReportModal}>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-              {numerologyReport && renderNumerologyReport()}
-              {astrologyReport && renderAstrologyReport()}
-              {loveCompatibilityReport && renderLoveCompatibilityReport()}
-              {monthlyForecastReport && renderMonthlyForecastReport()}
-            </DialogContent>
-          </Dialog>
-          <div className="mt-6 flex justify-center gap-4 flex-wrap max-w-[90vw]">
-            <Badge className="bg-gradient-to-r from-violet-500 to-purple-600 text-white flex items-center gap-1 shadow-md text-sm py-1 px-2">
-              <Lock className="h-4 w-4" /> SSL Secure
-            </Badge>
-            <Badge className="bg-gradient-to-r from-fuchsia-500 to-pink-600 text-white flex items-center gap-1 shadow-md text-sm py-1 px-2" style={{ animationDelay: '0.3s' }}>
-              <Cpu className="h-4 w-4" /> AI-Powered
-            </Badge>
-          </div>
-        </div>
-      </div>
+     <div className="bg-gradient-to-r from-purple-600 to-indigo-900 text-white py-12 px-4 sm:px-6 overflow-x-hidden">
+  <div className="max-w-[100vw] mx-auto text-center overflow-x-hidden">
+    <h1 className="text-3xl sm:text-4xl font-extrabold mb-4">
+      Ontdek uw spirituele blauwdruk
+    </h1>
+    <p className="text-base sm:text-lg mb-6 opacity-90 max-w-[90vw] mx-auto">
+      Ontgrendel persoonlijke inzichten in uw spirituele reis
+    </p>
+
+    <>
+      {!user && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{
+            opacity: 1,
+            scale: [1, 1.2, 0.95, 1],
+          }}
+          transition={{
+            duration: 1.5,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          whileHover={{ scale: 1.25 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          <Button
+            variant="brand"
+            className="rounded-full px-4 py-3 sm:px-6 sm:py-4 text-base sm:text-lg
+              bg-gradient-to-r from-amber-400 to-amber-500
+              hover:from-amber-500 hover:to-amber-600
+              shadow-xl hover:shadow-2xl
+              transition-all duration-300
+              border-2 border-white/20 whitespace-normal"
+            onClick={() => navigate("/register")}
+          >
+            Klik hier om gratis met een coach te chatten
+          </Button>
+        </motion.div>
+      )}
+    </>
+    <Dialog open={showFormModal} onOpenChange={setShowFormModal}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Uw Numerologie Rapport</DialogTitle>
+          <DialogDescription>
+            Vul uw gegevens in om uw gepersonaliseerde numerologie rapport te genereren.
+          </DialogDescription>
+        </DialogHeader>
+        {renderNumerologyForm()}
+      </DialogContent>
+    </Dialog>
+    <Dialog open={showReportModal} onOpenChange={setShowReportModal}>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        {numerologyReport && renderNumerologyReport()}
+        {astrologyReport && renderAstrologyReport()}
+        {loveCompatibilityReport && renderLoveCompatibilityReport()}
+        {monthlyForecastReport && renderMonthlyForecastReport()}
+      </DialogContent>
+    </Dialog>
+    
+    {/* CENTERED BADGES SECTION */}
+    <div className="mt-6 flex justify-center items-center gap-4 max-w-[90vw] mx-auto">
+      <Badge className="bg-gradient-to-r from-violet-500 to-purple-600 text-white flex items-center gap-1 shadow-md text-sm py-1 px-2">
+        <Lock className="h-4 w-4" /> SSL Secure
+      </Badge>
+      <Badge className="bg-gradient-to-r from-fuchsia-500 to-pink-600 text-white flex items-center gap-1 shadow-md text-sm py-1 px-2" style={{ animationDelay: '0.3s' }}>
+        <Cpu className="h-4 w-4" /> AI-Powered
+      </Badge>
+    </div>
+  </div>
+</div>
       <div className="max-w-7xl px-2 m-auto">
         <div className="mt-8 grid grid-cols-1 gap-6">
           <div className="lg:col-span-2 space-y-2 w-full">
@@ -1801,7 +1744,7 @@ Klik hier om gratis met een coach te chatten                </Button>
                     <p className="text-red-600 text-center">{humanPsychicsError}</p>
                   ) : humanPsychics.length === 0 ? (
                     <p className="text-gray-600 text-center">No human psychics available at the moment.</p>
-                  ) : (
+                  )  : (
                     <div className="grid gap-8 mb-10 w-full">
                       {humanPsychics.slice(0, showing).map((psychic, i) => {
                         const psychicStatus = getPsychicStatus(psychic._id);
