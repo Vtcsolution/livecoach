@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -58,6 +57,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const timerIntervalRef = useRef(null);
   const sessionLockRef = useRef(false);
+  const isMobile = useRef(isMobileDevice());
 
   // Formatteer timerduur in MM:SS en credits als geheel getal
   const formatTimerDuration = (seconds) => {
@@ -69,7 +69,6 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
   // Formatteer credits naar geheel getal
   const formatCredits = (creditsValue) => {
     if (creditsValue === null || creditsValue === undefined) return "0";
-    // Rond af naar dichtstbijzijnde geheel getal
     return Math.round(creditsValue).toString();
   };
 
@@ -133,15 +132,48 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
     }
   }, [user, chat?._id, credits, authLoading, authError]);
 
+  // Hulpfunctie om sessie te ontgrendelen
+  const unlockSession = async () => {
+    if (!sessionLockRef.current) return;
+    
+    try {
+      const token = localStorage.getItem("accessToken") || user.token;
+      await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/api/unlock-session/${chat._id}`,
+        {},
+        { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (error) {
+      console.log("Ontgrendelen niet nodig of niet mogelijk:", error.message);
+    } finally {
+      sessionLockRef.current = false;
+    }
+  };
+
   // Fetch session status with retry logic and fallback
   const fetchSessionStatus = async (retries = 3, delay = 1000) => {
     if (!chat?._id || authLoading || !user || authError || sessionLockRef.current) return;
+    
+    // Force unlock session lock na 5 seconden voor mobiel
+    if (isMobile.current && sessionLockRef.current) {
+      setTimeout(() => {
+        sessionLockRef.current = false;
+        console.log("Session lock geforceerd ontgrendeld voor mobiel");
+      }, 5000);
+    }
+    
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         const token = localStorage.getItem("accessToken") || user.token;
         const response = await axios.get(
           `${import.meta.env.VITE_BASE_URL}/api/session-status/${chat._id}`,
-          { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
+          { 
+            withCredentials: true, 
+            headers: { 
+              Authorization: `Bearer ${token}`
+            },
+            timeout: 8000 // Langer timeout voor mobiel
+          }
         );
         const { isFree, remainingFreeTime, paidTimer, credits: serverCredits, status, freeSessionUsed } = response.data;
         console.log("fetchSessionStatus:", { isFree, remainingFreeTime, paidTimer, credits: serverCredits, status, freeSessionUsed });
@@ -165,7 +197,15 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
       } catch (error) {
         console.error(`fetchSessionStatus poging ${attempt} mislukt:`, error);
         if (attempt === retries) {
-          setCredits(0);
+          // Voor mobiel, reset sessie lock als polling mislukt
+          if (isMobile.current) {
+            sessionLockRef.current = false;
+          }
+          // Stel credits in op 0 alleen als we echt geen verbinding kunnen maken
+          if (error.message === "Network Error" || error.code === "ERR_NETWORK") {
+            setCredits(0);
+            setError("Netwerkfout. Controleer je verbinding.");
+          }
         } else {
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
@@ -177,7 +217,12 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
   useEffect(() => {
     if (!user || !chat?._id) return;
 
-    socketRef.current = io(import.meta.env.VITE_BASE_URL, { withCredentials: true });
+    socketRef.current = io(import.meta.env.VITE_BASE_URL, { 
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
 
     socketRef.current.on("connect", () => {
       socketRef.current.emit("join", user._id);
@@ -185,7 +230,11 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
     });
 
     socketRef.current.on("sessionUpdate", (data) => {
-      if (sessionLockRef.current) return;
+      if (sessionLockRef.current && isMobile.current) {
+        // Force unlock voor mobiele apparaten bij sessionUpdate
+        sessionLockRef.current = false;
+      }
+      
       console.log("Ontvangen sessionUpdate:", data);
       if (data.psychicId === chat._id) {
         setIsFreePeriod(data.isFree);
@@ -252,7 +301,12 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
       const response = await axios.post(
         `${import.meta.env.VITE_BASE_URL}/api/start-free-session/${chat._id}`,
         {},
-        { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
+        { 
+          withCredentials: true, 
+          headers: { 
+            Authorization: `Bearer ${token}`
+          } 
+        }
       );
       console.log("startFreeSession response:", response.data);
       setIsFreePeriod(response.data.isFree);
@@ -285,6 +339,13 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
       setIsPaymentModalOpen(true);
       return;
     }
+    
+    // Speciale unlock logica voor mobiel
+    if (isMobile.current && sessionLockRef.current) {
+      sessionLockRef.current = false;
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
     sessionLockRef.current = true;
     setIsStartingSession(true);
     try {
@@ -292,7 +353,13 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
       const response = await axios.post(
         `${import.meta.env.VITE_BASE_URL}/api/start-paid-session/${chat._id}`,
         {},
-        { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
+        { 
+          withCredentials: true, 
+          headers: { 
+            Authorization: `Bearer ${token}`
+          },
+          timeout: 15000 // Langer timeout voor mobiel
+        }
       );
       console.log("startPaidSession response:", response.data);
       setIsFreePeriod(false);
@@ -308,10 +375,19 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
       const errMsg = error.response?.data?.error || error.message;
       console.error("startPaidSession error:", error);
       setError(`Kon betaalde sessie niet starten: ${errMsg}`);
-      toast.error(errMsg || "Kon betaalde sessie niet starten. Probeer het opnieuw.");
+      
       if (errMsg.includes("locked")) {
-        toast.info("Bronnen zijn tijdelijk vergrendeld. Probeer over een moment opnieuw...");
-        setTimeout(() => fetchSessionStatus(), 2000);
+        // Force unlock voor mobiel bij locked error
+        if (isMobile.current) {
+          sessionLockRef.current = false;
+          toast.info("Sessievergrendeling opgeheven. Probeer opnieuw...");
+          setTimeout(() => fetchSessionStatus(), 1000);
+        } else {
+          toast.info("Bronnen zijn tijdelijk vergrendeld. Probeer over een moment opnieuw...");
+          setTimeout(() => fetchSessionStatus(), 2000);
+        }
+      } else {
+        toast.error(errMsg || "Kon betaalde sessie niet starten. Probeer het opnieuw.");
       }
     } finally {
       setIsStartingSession(false);
@@ -319,49 +395,130 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
     }
   };
 
-  const startPaidSessionHandler = isMobileDevice()
+  const startPaidSessionHandler = isMobile.current
     ? debounce(startPaidSession, 200)
     : debounce(startPaidSession, 500);
 
-  // Stop paid session
+  // Stop paid session met mobiel-specifieke fixes
   const stopPaidSession = async () => {
     if (!chat?._id || authLoading || !user || authError || isStoppingSession || isStartingSession || sessionLockRef.current) return;
+    
+    // Speciale unlock logica voor mobiele apparaten
+    if (isMobile.current) {
+      // Forceer unlock voor mobiel om vastlopende sessies te voorkomen
+      sessionLockRef.current = false;
+    }
+    
     sessionLockRef.current = true;
     setIsStoppingSession(true);
+    
     try {
       const token = localStorage.getItem("accessToken") || user.token;
       const response = await axios.post(
         `${import.meta.env.VITE_BASE_URL}/api/stop-session/${chat._id}`,
         {},
-        { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
+        { 
+          withCredentials: true, 
+          headers: { 
+            Authorization: `Bearer ${token}`
+          },
+          timeout: 10000 // Timeout voor mobiele netwerken
+        }
       );
+      
       console.log("stopPaidSession response:", response.data);
-      setIsFreePeriod(false);
-      setTimerActive(false);
-      setTimerDuration(0);
-      setActivePaidSession(null);
-      setCredits(Math.round(response.data.credits || 0));
-      setFreeSessionUsed(true);
-      setModalState("showFeedbackModal", true);
+      
+      // Controleer of er een locked error is voor mobiel
+      const isLockedError = response.data.error?.includes("locked");
+      
+      if (isMobile.current && isLockedError) {
+        // Voor mobiel: forceer lokale reset zonder te wachten op server
+        setIsFreePeriod(false);
+        setTimerActive(false);
+        setTimerDuration(0);
+        setActivePaidSession(null);
+        setCredits(Math.round(response.data.credits || 0));
+        setFreeSessionUsed(true);
+        
+        // Stuur een extra unlock request
+        setTimeout(() => unlockSession(), 500);
+        
+        // Poll opnieuw voor mobiel
+        setTimeout(() => {
+          sessionLockRef.current = false;
+          fetchSessionStatus();
+        }, 1000);
+        
+        toast.success("Sessie gestopt (mobiel)");
+      } else {
+        // Normale flow
+        setIsFreePeriod(false);
+        setTimerActive(false);
+        setTimerDuration(0);
+        setActivePaidSession(null);
+        setCredits(Math.round(response.data.credits || 0));
+        setFreeSessionUsed(true);
+        setModalState("showFeedbackModal", true);
+      }
+      
       setError(null);
-      toast.success("Betaalde sessie succesvol gestopt!");
-      await fetchSessionStatus();
+      
+      if (!isLockedError) {
+        toast.success("Betaalde sessie succesvol gestopt!");
+      }
+      
+      // Forceer een extra fetch voor mobiele apparaten
+      if (isMobile.current) {
+        setTimeout(() => fetchSessionStatus(), 1500);
+      }
+      
     } catch (error) {
       const errMsg = error.response?.data?.error || error.message;
       console.error("stopPaidSession error:", error);
-      setError(`Kon sessie niet stoppen: ${errMsg}`);
-      toast.error(errMsg || "Kon sessie niet stoppen. Probeer het opnieuw.");
-      if (errMsg.includes("locked")) {
-        toast.info("Sessie of portemonnee is vergrendeld. Probeer over een moment opnieuw...");
-        setTimeout(() => fetchSessionStatus(), 2000);
+      
+      // Speciale behandeling voor mobiele apparaten
+      if (isMobile.current) {
+        // Voor mobiel: lokale reset uitvoeren ongeacht server response
+        setIsFreePeriod(false);
+        setTimerActive(false);
+        setTimerDuration(0);
+        setActivePaidSession(null);
+        setFreeSessionUsed(true);
+        
+        // Forceer unlock voor mobiel
+        sessionLockRef.current = false;
+        
+        // Toon aangepaste mobiele melding
+        if (errMsg.includes("locked") || error.code === 'ECONNABORTED') {
+          toast.info("Sessie gestopt voor mobiel apparaat. Vernieuw de status...");
+        } else {
+          toast.info("Sessie gestopt (mobiel). Vernieuw de status...");
+        }
+        
+        // Poll opnieuw
+        setTimeout(() => fetchSessionStatus(), 1000);
+      } else {
+        // Normale error handling voor desktop
+        setError(`Kon sessie niet stoppen: ${errMsg}`);
+        
+        if (errMsg.includes("locked")) {
+          toast.info("Sessie of portemonnee is vergrendeld. Probeer over een moment opnieuw...");
+          setTimeout(() => fetchSessionStatus(), 2000);
+        } else {
+          toast.error(errMsg || "Kon sessie niet stoppen. Probeer het opnieuw.");
+        }
       }
     } finally {
       setIsStoppingSession(false);
-      sessionLockRef.current = false;
+      
+      // Extra veiligheid: forceer unlock na 3 seconden
+      setTimeout(() => {
+        sessionLockRef.current = false;
+      }, 3000);
     }
   };
 
-  const stopPaidSessionHandler = isMobileDevice()
+  const stopPaidSessionHandler = isMobile.current
     ? debounce(stopPaidSession, 200)
     : debounce(stopPaidSession, 500);
 
@@ -583,7 +740,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
         <div className="border-t border-border bg-[#EEEEEE] p-2">
           <div className="flex items-center justify-between gap-2 flex-wrap min-h-[48px]">
             {/* Timer on the Left */}
-            {isMobileDevice() ? (
+            {isMobile.current ? (
               <div className="flex items-center gap-1">
                 <Timer className="h-4 w-4 text-[#3B5EB7]" />
                 <span className="text-sm font-medium">
@@ -647,7 +804,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
                 <span className="text-sm text-gray-500">Credits laden...</span>
               )}
               {!isFreePeriod && !timerActive && !activePaidSession && credits !== null && credits > 0 && (
-                isMobileDevice() ? (
+                isMobile.current ? (
                   <Button
                     variant="outline"
                     size="sm"
@@ -694,7 +851,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
                 )
               )}
               {timerActive && !isFreePeriod && (
-                isMobileDevice() ? (
+                isMobile.current ? (
                   <Button
                     variant="outline"
                     size="sm"
@@ -747,7 +904,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
                 )
               )}
               {!isFreePeriod && credits !== null && credits <= 0 && !authLoading && !authError && user && (
-                isMobileDevice() ? (
+                isMobile.current ? (
                   <Button
                     variant="outline"
                     size="sm"
