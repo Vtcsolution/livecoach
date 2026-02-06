@@ -222,7 +222,7 @@ export default function Signup() {
                   </Button>
                   
                   <Button
-                    onClick={() => navigate("/aura-advisors")}
+                    onClick={() => navigate("/")}
                     variant="outline"
                     className="w-full border-blue-600 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
                   >
